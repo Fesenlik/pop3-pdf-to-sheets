@@ -2,6 +2,7 @@ import email
 import json
 import poplib
 import re
+from collections import Counter
 from datetime import datetime, timezone
 from email.header import decode_header
 from pathlib import Path
@@ -201,10 +202,66 @@ def extract_pdf_table(pdf_bytes: bytes):
 
         if not headers or not collected_rows:
             return None, None
+
+        # Some PDFs lose the right-most date column in line-based extraction.
+        # If that column is completely empty, recover it from a text-based pass.
+        if headers and collected_rows:
+            last_header = (headers[-1] or "").lower()
+            if ("sip" in last_header and "t.tarih" in last_header) and all(
+                str(r[-1]).strip() == "" for r in collected_rows
+            ):
+                inferred_date = infer_ship_date_from_text_tables(pdf)
+                filled = 0
+                if inferred_date:
+                    for row in collected_rows:
+                        if str(row[-1]).strip() == "":
+                            row[-1] = inferred_date
+                            filled += 1
+                print(f"[DEBUG] last_col_recovered_rows={filled} inferred_date={inferred_date}")
         return headers, collected_rows
     finally:
         if tmp.exists():
             tmp.unlink()
+
+
+def infer_ship_date_from_text_tables(pdf_doc) -> str:
+    date_re = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
+    partial_re = re.compile(r"^\.(\d{2}\.\d{4})$")
+    day_suffix_re = re.compile(r"(\d{2})$")
+    found_dates: list[str] = []
+    settings = {
+        "vertical_strategy": "text",
+        "horizontal_strategy": "lines",
+        "intersection_tolerance": 5,
+        "snap_tolerance": 3,
+        "join_tolerance": 3,
+    }
+
+    for page in pdf_doc.pages:
+        for table in page.extract_tables(table_settings=settings):
+            if not table:
+                continue
+            for row in table:
+                if not row:
+                    continue
+                normalized = [re.sub(r"\s+", " ", (c or "")).strip() for c in row]
+                if len(normalized) < 2:
+                    continue
+                last_val = normalized[-1]
+                if date_re.match(last_val):
+                    found_dates.append(last_val)
+                    continue
+
+                m = partial_re.match(last_val)
+                if m:
+                    prev = normalized[-2]
+                    d = day_suffix_re.search(prev)
+                    if d:
+                        found_dates.append(f"{d.group(1)}.{m.group(1)}")
+
+    if not found_dates:
+        return ""
+    return Counter(found_dates).most_common(1)[0][0]
 
 
 def parse_dynamic_table(text: str):
