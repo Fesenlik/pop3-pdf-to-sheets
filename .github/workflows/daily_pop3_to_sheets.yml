@@ -7,7 +7,7 @@ env:
   POP3_USERNAME_DEFAULT: ferhat@pameks.com.tr
   MAIL_FROM_CONTAINS_DEFAULT: palbentextile.com
   MAIL_SUBJECT_CONTAINS_DEFAULT: ""
-  ATTACHMENT_NAME_CONTAINS_DEFAULT: İşletmedeki Partiler
+  ATTACHMENT_NAME_CONTAINS_DEFAULT: ""
   APPS_SCRIPT_WEBHOOK_URL_DEFAULT: https://script.google.com/macros/s/AKfycbxWTvzzZjcwmJjFYqE5coGTY-zY-0piDMnLhvt8BDD5RY8L3tkIWVV47RgYApAO6gLt/exec
 
 on:

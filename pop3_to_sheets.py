@@ -11,6 +11,18 @@ from typing import Any
 import pdfplumber
 import requests
 
+REPORT_TYPE_PARTILER = "isletmedeki_partiler"
+REPORT_TYPE_SEVK = "boya_irsaliye_sevk"
+
+
+def detect_report_type(filename: str) -> str:
+    name = (filename or "").lower()
+    if "boya i̇rsaliye raporu" in name or "boya irsaliye raporu" in name:
+        return REPORT_TYPE_SEVK
+    if "işletmedeki partiler" in name or "isletmedeki partiler" in name:
+        return REPORT_TYPE_PARTILER
+    return ""
+
 
 def load_config(path: str = "config.pop3.json") -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
@@ -109,10 +121,16 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
                     continue
                 payload = part.get_payload(decode=True)
                 if payload:
+                    report_type = detect_report_type(filename)
+                    if not report_type:
+                        print("[DEBUG] skip_reason=unknown_report_type")
+                        continue
                     print(f"[DEBUG] selected_pdf filename={filename} message_id={message_id}")
                     return {
                         "message_id": message_id,
                         "subject": subject,
+                        "filename": filename,
+                        "report_type": report_type,
                         "pdf_bytes": payload,
                     }
     print("[DEBUG] no_matching_message_or_pdf_found")
@@ -219,6 +237,96 @@ def extract_pdf_table(pdf_bytes: bytes):
                             filled += 1
                 print(f"[DEBUG] last_col_recovered_rows={filled} inferred_date={inferred_date}")
         return headers, collected_rows
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def extract_sevk_table(pdf_bytes: bytes):
+    tmp = Path("_tmp_report.pdf")
+    tmp.write_bytes(pdf_bytes)
+    try:
+        headers = [
+            "İrsaliye No",
+            "İrsaliye Tarihi",
+            "Parti",
+            "Sipariş",
+            "Müş.Sip No",
+            "Cins",
+            "Sipariş Proses",
+            "Renk Kodu",
+            "Renk Adı",
+            "Ucrt Tamir",
+            "Adet",
+            "Brüt Kg",
+            "Net Kg",
+            "Fire Kg",
+            "Fire %",
+        ]
+        rows = []
+        settings = {
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "lines",
+            "intersection_tolerance": 5,
+            "snap_tolerance": 3,
+            "join_tolerance": 3,
+        }
+        with pdfplumber.open(str(tmp)) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables(table_settings=settings):
+                    if not table:
+                        continue
+                    normalized_rows = []
+                    for row in table:
+                        if not row:
+                            continue
+                        norm = [re.sub(r"\s+", " ", (c or "")).strip() for c in row]
+                        if any(norm):
+                            normalized_rows.append(norm)
+                    if not normalized_rows:
+                        continue
+
+                    first = normalized_rows[0]
+                    if not first or first[0] != "İrsaliye No":
+                        continue
+
+                    irs_no = first[1] if len(first) > 1 else ""
+                    irs_tarih = ""
+                    if len(first) > 6:
+                        m = re.search(r"(\d{2}\.\d{2}\.\d{4})", first[6])
+                        if m:
+                            irs_tarih = m.group(1)
+
+                    for r in normalized_rows[1:]:
+                        if len(r) < 25:
+                            continue
+                        if "Toplam" in " ".join(r):
+                            continue
+                        if not r[0].startswith("("):
+                            continue
+
+                        rows.append(
+                            [
+                                irs_no,
+                                irs_tarih,
+                                r[0],
+                                r[2],
+                                r[3],
+                                r[5],
+                                r[8],
+                                r[10],
+                                r[12],
+                                r[18],
+                                normalize_cell(r[20]),
+                                normalize_cell(r[21]),
+                                normalize_cell(r[22]),
+                                normalize_cell(r[23]),
+                                r[24],
+                            ]
+                        )
+        if not rows:
+            return None, None
+        return headers, rows
     finally:
         if tmp.exists():
             tmp.unlink()
@@ -359,8 +467,25 @@ def main():
         )
         return
 
-    headers, rows = extract_pdf_table(item["pdf_bytes"])
-    print(f"[DEBUG] table_extract_headers={len(headers) if headers else 0} table_extract_rows={len(rows) if rows else 0}")
+    report_type = item.get("report_type", "")
+    target_sheet = cfg["google"]["target_sheet_name"]
+
+    if report_type == REPORT_TYPE_SEVK:
+        headers, rows = extract_sevk_table(item["pdf_bytes"])
+        target_sheet = "Palben - Sevk"
+        print(
+            f"[DEBUG] report_type={report_type} "
+            f"table_extract_headers={len(headers) if headers else 0} "
+            f"table_extract_rows={len(rows) if rows else 0}"
+        )
+    else:
+        headers, rows = extract_pdf_table(item["pdf_bytes"])
+        target_sheet = "Palben - İşletmedeki Partiler"
+        print(
+            f"[DEBUG] report_type={report_type} "
+            f"table_extract_headers={len(headers) if headers else 0} "
+            f"table_extract_rows={len(rows) if rows else 0}"
+        )
 
     if not headers or not rows:
         text = extract_pdf_text(item["pdf_bytes"])
@@ -404,6 +529,7 @@ def main():
         cfg["webhook"]["secret"],
         {
             **base_payload,
+            "target_sheet": target_sheet,
             "message_id": item["message_id"],
             "status": "SUCCESS",
             "note": "Processed and replaced target sheet",
