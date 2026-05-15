@@ -32,14 +32,14 @@ jobs:
 
       - name: Write runtime config
         env:
-          POP3_HOST: ${{ secrets.POP3_HOST }}
-          POP3_PORT: ${{ secrets.POP3_PORT }}
-          POP3_USERNAME: ${{ secrets.POP3_USERNAME }}
-          POP3_PASSWORD: ${{ secrets.POP3_PASSWORD }}
-          MAIL_FROM_CONTAINS: ${{ secrets.MAIL_FROM_CONTAINS }}
-          MAIL_SUBJECT_CONTAINS: ${{ secrets.MAIL_SUBJECT_CONTAINS }}
-          APPS_SCRIPT_WEBHOOK_URL: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL }}
-          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          POP3_HOST: ${{ secrets.POP3_HOST || vars.POP3_HOST }}
+          POP3_PORT: ${{ secrets.POP3_PORT || vars.POP3_PORT }}
+          POP3_USERNAME: ${{ secrets.POP3_USERNAME || vars.POP3_USERNAME }}
+          POP3_PASSWORD: ${{ secrets.POP3_PASSWORD || vars.POP3_PASSWORD }}
+          MAIL_FROM_CONTAINS: ${{ secrets.MAIL_FROM_CONTAINS || vars.MAIL_FROM_CONTAINS }}
+          MAIL_SUBJECT_CONTAINS: ${{ secrets.MAIL_SUBJECT_CONTAINS || vars.MAIL_SUBJECT_CONTAINS }}
+          APPS_SCRIPT_WEBHOOK_URL: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL || vars.APPS_SCRIPT_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET || vars.WEBHOOK_SECRET }}
         run: |
           : "${POP3_HOST:?Missing POP3_HOST secret}"
           : "${POP3_PORT:?Missing POP3_PORT secret}"
