@@ -24,6 +24,46 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Debug secrets and vars presence
+        env:
+          POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
+          POP3_PORT_SECRET: ${{ secrets.POP3_PORT }}
+          POP3_USERNAME_SECRET: ${{ secrets.POP3_USERNAME }}
+          POP3_PASSWORD_SECRET: ${{ secrets.POP3_PASSWORD }}
+          MAIL_FROM_CONTAINS_SECRET: ${{ secrets.MAIL_FROM_CONTAINS }}
+          MAIL_SUBJECT_CONTAINS_SECRET: ${{ secrets.MAIL_SUBJECT_CONTAINS }}
+          APPS_SCRIPT_WEBHOOK_URL_SECRET: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL }}
+          WEBHOOK_SECRET_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          POP3_HOST_VAR: ${{ vars.POP3_HOST }}
+          POP3_PORT_VAR: ${{ vars.POP3_PORT }}
+          POP3_USERNAME_VAR: ${{ vars.POP3_USERNAME }}
+          POP3_PASSWORD_VAR: ${{ vars.POP3_PASSWORD }}
+          MAIL_FROM_CONTAINS_VAR: ${{ vars.MAIL_FROM_CONTAINS }}
+          MAIL_SUBJECT_CONTAINS_VAR: ${{ vars.MAIL_SUBJECT_CONTAINS }}
+          APPS_SCRIPT_WEBHOOK_URL_VAR: ${{ vars.APPS_SCRIPT_WEBHOOK_URL }}
+          WEBHOOK_SECRET_VAR: ${{ vars.WEBHOOK_SECRET }}
+        run: |
+          check_pair() {
+            local name="$1"
+            local s="$2"
+            local v="$3"
+            if [ -n "$s" ]; then
+              echo "$name: SECRET_OK"
+            elif [ -n "$v" ]; then
+              echo "$name: VAR_OK"
+            else
+              echo "$name: MISSING"
+            fi
+          }
+          check_pair "POP3_HOST" "$POP3_HOST_SECRET" "$POP3_HOST_VAR"
+          check_pair "POP3_PORT" "$POP3_PORT_SECRET" "$POP3_PORT_VAR"
+          check_pair "POP3_USERNAME" "$POP3_USERNAME_SECRET" "$POP3_USERNAME_VAR"
+          check_pair "POP3_PASSWORD" "$POP3_PASSWORD_SECRET" "$POP3_PASSWORD_VAR"
+          check_pair "MAIL_FROM_CONTAINS" "$MAIL_FROM_CONTAINS_SECRET" "$MAIL_FROM_CONTAINS_VAR"
+          check_pair "MAIL_SUBJECT_CONTAINS" "$MAIL_SUBJECT_CONTAINS_SECRET" "$MAIL_SUBJECT_CONTAINS_VAR"
+          check_pair "APPS_SCRIPT_WEBHOOK_URL" "$APPS_SCRIPT_WEBHOOK_URL_SECRET" "$APPS_SCRIPT_WEBHOOK_URL_VAR"
+          check_pair "WEBHOOK_SECRET" "$WEBHOOK_SECRET_SECRET" "$WEBHOOK_SECRET_VAR"
+
       - name: Ensure processed state file exists
         run: |
           if [ ! -f processed_ids.json ]; then
