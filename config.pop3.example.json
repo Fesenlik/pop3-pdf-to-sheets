@@ -12,7 +12,7 @@
     "attachment_name_contains": "İşletmedeki Partiler"
   },
   "google": {
-    "target_sheet_name": "Rapor",
+    "target_sheet_name": "Palben - İşletmedeki Partiler",
     "log_sheet_name": "Log"
   },
   "webhook": {
