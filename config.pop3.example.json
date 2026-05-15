@@ -1,0 +1,24 @@
+{
+  "pop3": {
+    "host": "mail.example.com",
+    "port": 995,
+    "username": "user@example.com",
+    "password": "CHANGE_ME",
+    "use_ssl": true
+  },
+  "mail_filter": {
+    "from_contains": "rapor@firma.com",
+    "subject_contains": "Isletmedeki Partiler"
+  },
+  "google": {
+    "target_sheet_name": "Rapor",
+    "log_sheet_name": "Log"
+  },
+  "webhook": {
+    "url": "https://script.google.com/macros/s/REPLACE_ME/exec",
+    "secret": "CHANGE_ME_SECRET"
+  },
+  "state": {
+    "processed_ids_path": "processed_ids.json"
+  }
+}

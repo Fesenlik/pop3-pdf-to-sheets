@@ -1,0 +1,22 @@
+{
+  "pop3": {
+    "host": "mail.kurumsaleposta.com",
+    "port": 995,
+    "username": "ferhat@pameks.com.tr",
+    "password": "paMX3179541*",
+    "use_ssl": true
+  },
+  "mail_filter": {
+    "from_contains": "santral@palbentextile.com",
+    "subject_contains": "İŞLETME RAPORU"
+  },
+  "google": {
+    "spreadsheet_id": "1jSiS8in8KRJU8lR5GADNPoAhqfvS9Nqrwv-pNPHZWNI",
+    "target_sheet_name": "Palben - İşletmedeki Partiler",
+    "log_sheet_name": "Log",
+    "service_account_json": "service_account.json"
+  },
+  "state": {
+    "processed_ids_path": "processed_ids.json"
+  }
+}

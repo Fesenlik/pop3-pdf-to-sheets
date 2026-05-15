@@ -1,0 +1,8 @@
+{
+  "queryFrom": "reports@example.com",
+  "querySubjectKeyword": "Isletmedeki Partiler",
+  "processedLabelName": "processed-pdf-report",
+  "targetSheetName": "Rapor",
+  "logSheetName": "Log",
+  "timezone": "Europe/Istanbul"
+}
