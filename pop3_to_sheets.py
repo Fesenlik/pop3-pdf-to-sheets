@@ -140,8 +140,8 @@ def extract_pdf_table(pdf_bytes: bytes):
     tmp = Path("_tmp_report.pdf")
     tmp.write_bytes(pdf_bytes)
     try:
-        best_table = None
-        best_score = 0
+        headers = None
+        collected_rows = []
 
         table_settings = {
             "vertical_strategy": "lines",
@@ -162,28 +162,46 @@ def extract_pdf_table(pdf_bytes: bytes):
                         if any(normalized):
                             cleaned.append(normalized)
 
-                    if len(cleaned) < 2:
+                    if not cleaned:
                         continue
 
-                    col_count = max(len(r) for r in cleaned)
-                    score = len(cleaned) * col_count
-                    if col_count >= 3 and score > best_score:
-                        best_score = score
-                        best_table = cleaned
+                    first_row = cleaned[0]
+                    first_row_text = " ".join(first_row).lower()
 
-        if not best_table:
+                    # Skip report totals/footer tables.
+                    if "toplam" in first_row_text and len(cleaned) <= 3:
+                        continue
+
+                    normalized_first = [re.sub(r"\s+", " ", (c or "")).strip() for c in first_row]
+                    header_probe = " ".join(normalized_first).lower()
+                    looks_like_header = (
+                        "sipariş no" in header_probe
+                        and "parti no" in header_probe
+                        and ("ham adı" in header_probe or "ham adi" in header_probe)
+                    )
+
+                    if looks_like_header:
+                        headers = [h if h else f"Column_{i+1}" for i, h in enumerate(normalized_first)]
+                        for row in cleaned[1:]:
+                            normalized_row = [re.sub(r"\s+", " ", (c or "")).strip() for c in row]
+                            if not any(normalized_row):
+                                continue
+                            row_fixed = normalized_row[: len(headers)] + [""] * max(0, len(headers) - len(normalized_row))
+                            collected_rows.append([normalize_cell(v) for v in row_fixed])
+                        continue
+
+                    # Data-only table: accept after we already have headers.
+                    if headers and len(first_row) >= max(3, len(headers) - 3):
+                        for row in cleaned:
+                            normalized_row = [re.sub(r"\s+", " ", (c or "")).strip() for c in row]
+                            if not any(normalized_row):
+                                continue
+                            row_fixed = normalized_row[: len(headers)] + [""] * max(0, len(headers) - len(normalized_row))
+                            collected_rows.append([normalize_cell(v) for v in row_fixed])
+
+        if not headers or not collected_rows:
             return None, None
-
-        headers = [h if h else f"Column_{i+1}" for i, h in enumerate(best_table[0])]
-        expected_len = len(headers)
-        rows = []
-        for row in best_table[1:]:
-            normalized_row = row[:expected_len] + [""] * max(0, expected_len - len(row))
-            rows.append([normalize_cell(v) for v in normalized_row])
-
-        if not rows:
-            return None, None
-        return headers, rows
+        return headers, collected_rows
     finally:
         if tmp.exists():
             tmp.unlink()
