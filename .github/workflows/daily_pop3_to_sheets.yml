@@ -24,12 +24,11 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
-      - name: Restore processed state
-        uses: actions/download-artifact@v4
-        with:
-          name: processed-state
-          path: .
-        continue-on-error: true
+      - name: Ensure processed state file exists
+        run: |
+          if [ ! -f processed_ids.json ]; then
+            echo '{"processed_ids":[]}' > processed_ids.json
+          fi
 
       - name: Write runtime config
         env:
