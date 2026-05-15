@@ -136,6 +136,59 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
             tmp.unlink()
 
 
+def extract_pdf_table(pdf_bytes: bytes):
+    tmp = Path("_tmp_report.pdf")
+    tmp.write_bytes(pdf_bytes)
+    try:
+        best_table = None
+        best_score = 0
+
+        table_settings = {
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "lines",
+            "intersection_tolerance": 5,
+            "snap_tolerance": 3,
+            "join_tolerance": 3,
+        }
+
+        with pdfplumber.open(str(tmp)) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables(table_settings=table_settings):
+                    cleaned = []
+                    for row in table:
+                        if not row:
+                            continue
+                        normalized = [((cell or "").strip()) for cell in row]
+                        if any(normalized):
+                            cleaned.append(normalized)
+
+                    if len(cleaned) < 2:
+                        continue
+
+                    col_count = max(len(r) for r in cleaned)
+                    score = len(cleaned) * col_count
+                    if col_count >= 3 and score > best_score:
+                        best_score = score
+                        best_table = cleaned
+
+        if not best_table:
+            return None, None
+
+        headers = [h if h else f"Column_{i+1}" for i, h in enumerate(best_table[0])]
+        expected_len = len(headers)
+        rows = []
+        for row in best_table[1:]:
+            normalized_row = row[:expected_len] + [""] * max(0, expected_len - len(row))
+            rows.append([normalize_cell(v) for v in normalized_row])
+
+        if not rows:
+            return None, None
+        return headers, rows
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
 def parse_dynamic_table(text: str):
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     if not lines:
@@ -225,26 +278,30 @@ def main():
         )
         return
 
-    text = extract_pdf_text(item["pdf_bytes"])
-    print(f"[DEBUG] extracted_text_length={len(text.strip())}")
-    if len(text.strip()) < 50:
-        print("[DEBUG] result=pdf_text_too_short")
-        post_to_apps_script(
-            cfg["webhook"]["url"],
-            cfg["webhook"]["secret"],
-            {
-                **base_payload,
-                "message_id": item["message_id"],
-                "status": "ERROR",
-                "note": "PDF text extraction failed/too short",
-                "headers": [],
-                "rows": [],
-            },
-        )
-        return
+    headers, rows = extract_pdf_table(item["pdf_bytes"])
+    print(f"[DEBUG] table_extract_headers={len(headers) if headers else 0} table_extract_rows={len(rows) if rows else 0}")
 
-    headers, rows = parse_dynamic_table(text)
-    print(f"[DEBUG] parsed_headers={len(headers) if headers else 0} parsed_rows={len(rows) if rows else 0}")
+    if not headers or not rows:
+        text = extract_pdf_text(item["pdf_bytes"])
+        print(f"[DEBUG] extracted_text_length={len(text.strip())}")
+        if len(text.strip()) < 50:
+            print("[DEBUG] result=pdf_text_too_short")
+            post_to_apps_script(
+                cfg["webhook"]["url"],
+                cfg["webhook"]["secret"],
+                {
+                    **base_payload,
+                    "message_id": item["message_id"],
+                    "status": "ERROR",
+                    "note": "PDF text extraction failed/too short",
+                    "headers": [],
+                    "rows": [],
+                },
+            )
+            return
+        headers, rows = parse_dynamic_table(text)
+        print(f"[DEBUG] text_parse_headers={len(headers) if headers else 0} text_parse_rows={len(rows) if rows else 0}")
+
     if not headers or not rows:
         print("[DEBUG] result=table_parse_failed")
         post_to_apps_script(
