@@ -34,6 +34,7 @@ jobs:
           MAIL_SUBJECT_CONTAINS_SECRET: ${{ secrets.MAIL_SUBJECT_CONTAINS }}
           APPS_SCRIPT_WEBHOOK_URL_SECRET: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          PALBEN_SECRET: ${{ secrets.PALBEN }}
           POP3_HOST_VAR: ${{ vars.POP3_HOST }}
           POP3_PORT_VAR: ${{ vars.POP3_PORT }}
           POP3_USERNAME_VAR: ${{ vars.POP3_USERNAME }}
@@ -42,6 +43,7 @@ jobs:
           MAIL_SUBJECT_CONTAINS_VAR: ${{ vars.MAIL_SUBJECT_CONTAINS }}
           APPS_SCRIPT_WEBHOOK_URL_VAR: ${{ vars.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_VAR: ${{ vars.WEBHOOK_SECRET }}
+          PALBEN_VAR: ${{ vars.PALBEN }}
         run: |
           check_pair() {
             local name="$1"
@@ -63,6 +65,7 @@ jobs:
           check_pair "MAIL_SUBJECT_CONTAINS" "$MAIL_SUBJECT_CONTAINS_SECRET" "$MAIL_SUBJECT_CONTAINS_VAR"
           check_pair "APPS_SCRIPT_WEBHOOK_URL" "$APPS_SCRIPT_WEBHOOK_URL_SECRET" "$APPS_SCRIPT_WEBHOOK_URL_VAR"
           check_pair "WEBHOOK_SECRET" "$WEBHOOK_SECRET_SECRET" "$WEBHOOK_SECRET_VAR"
+          check_pair "PALBEN" "$PALBEN_SECRET" "$PALBEN_VAR"
 
       - name: Ensure processed state file exists
         run: |
@@ -80,6 +83,7 @@ jobs:
           MAIL_SUBJECT_CONTAINS_SECRET: ${{ secrets.MAIL_SUBJECT_CONTAINS }}
           APPS_SCRIPT_WEBHOOK_URL_SECRET: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          PALBEN_SECRET: ${{ secrets.PALBEN }}
           POP3_HOST_VAR: ${{ vars.POP3_HOST }}
           POP3_PORT_VAR: ${{ vars.POP3_PORT }}
           POP3_USERNAME_VAR: ${{ vars.POP3_USERNAME }}
@@ -88,7 +92,17 @@ jobs:
           MAIL_SUBJECT_CONTAINS_VAR: ${{ vars.MAIL_SUBJECT_CONTAINS }}
           APPS_SCRIPT_WEBHOOK_URL_VAR: ${{ vars.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_VAR: ${{ vars.WEBHOOK_SECRET }}
+          PALBEN_VAR: ${{ vars.PALBEN }}
         run: |
+          PALBEN_CONFIG="${PALBEN_SECRET:-$PALBEN_VAR}"
+
+          read_palben_value() {
+            local key="$1"
+            printf '%s\n' "$PALBEN_CONFIG" \
+              | sed -n "s/^[[:space:]]*$key[[:space:]]*=[[:space:]]*//p" \
+              | tail -n 1
+          }
+
           POP3_HOST="${POP3_HOST_SECRET:-$POP3_HOST_VAR}"
           POP3_PORT="${POP3_PORT_SECRET:-$POP3_PORT_VAR}"
           POP3_USERNAME="${POP3_USERNAME_SECRET:-$POP3_USERNAME_VAR}"
@@ -97,6 +111,15 @@ jobs:
           MAIL_SUBJECT_CONTAINS="${MAIL_SUBJECT_CONTAINS_SECRET:-$MAIL_SUBJECT_CONTAINS_VAR}"
           APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL_SECRET:-$APPS_SCRIPT_WEBHOOK_URL_VAR}"
           WEBHOOK_SECRET="${WEBHOOK_SECRET_SECRET:-$WEBHOOK_SECRET_VAR}"
+
+          POP3_HOST="${POP3_HOST:-$(read_palben_value POP3_HOST)}"
+          POP3_PORT="${POP3_PORT:-$(read_palben_value POP3_PORT)}"
+          POP3_USERNAME="${POP3_USERNAME:-$(read_palben_value POP3_USERNAME)}"
+          POP3_PASSWORD="${POP3_PASSWORD:-$(read_palben_value POP3_PASSWORD)}"
+          MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS:-$(read_palben_value MAIL_FROM_CONTAINS)}"
+          MAIL_SUBJECT_CONTAINS="${MAIL_SUBJECT_CONTAINS:-$(read_palben_value MAIL_SUBJECT_CONTAINS)}"
+          APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$(read_palben_value APPS_SCRIPT_WEBHOOK_URL)}"
+          WEBHOOK_SECRET="${WEBHOOK_SECRET:-$(read_palben_value WEBHOOK_SECRET)}"
 
           : "${POP3_HOST:?Missing POP3_HOST (set repo Secret or Variable)}"
           : "${POP3_PORT:?Missing POP3_PORT (set repo Secret or Variable)}"
@@ -107,41 +130,42 @@ jobs:
           : "${APPS_SCRIPT_WEBHOOK_URL:?Missing APPS_SCRIPT_WEBHOOK_URL (set repo Secret or Variable)}"
           : "${WEBHOOK_SECRET:?Missing WEBHOOK_SECRET (set repo Secret or Variable)}"
 
-          cat > config.pop3.json <<'JSON'
-          {
-            "pop3": {
-              "host": "__POP3_HOST__",
-              "port": "__POP3_PORT__",
-              "username": "__POP3_USERNAME__",
-              "password": "__POP3_PASSWORD__",
-              "use_ssl": true
-            },
-            "mail_filter": {
-              "from_contains": "__MAIL_FROM_CONTAINS__",
-              "subject_contains": "__MAIL_SUBJECT_CONTAINS__"
-            },
-            "google": {
-              "target_sheet_name": "Rapor",
-              "log_sheet_name": "Log"
-            },
-            "webhook": {
-              "url": "__APPS_SCRIPT_WEBHOOK_URL__",
-              "secret": "__WEBHOOK_SECRET__"
-            },
-            "state": {
-              "processed_ids_path": "processed_ids.json"
-            }
-          }
-          JSON
+          export POP3_HOST POP3_PORT POP3_USERNAME POP3_PASSWORD
+          export MAIL_FROM_CONTAINS MAIL_SUBJECT_CONTAINS
+          export APPS_SCRIPT_WEBHOOK_URL WEBHOOK_SECRET
 
-          sed -i "s|__POP3_HOST__|${POP3_HOST}|g" config.pop3.json
-          sed -i "s|__POP3_PORT__|${POP3_PORT}|g" config.pop3.json
-          sed -i "s|__POP3_USERNAME__|${POP3_USERNAME}|g" config.pop3.json
-          sed -i "s|__POP3_PASSWORD__|${POP3_PASSWORD}|g" config.pop3.json
-          sed -i "s|__MAIL_FROM_CONTAINS__|${MAIL_FROM_CONTAINS}|g" config.pop3.json
-          sed -i "s|__MAIL_SUBJECT_CONTAINS__|${MAIL_SUBJECT_CONTAINS}|g" config.pop3.json
-          sed -i "s|__APPS_SCRIPT_WEBHOOK_URL__|${APPS_SCRIPT_WEBHOOK_URL}|g" config.pop3.json
-          sed -i "s|__WEBHOOK_SECRET__|${WEBHOOK_SECRET}|g" config.pop3.json
+          python - <<'PY'
+          import json
+          import os
+
+          cfg = {
+              "pop3": {
+                  "host": os.environ["POP3_HOST"],
+                  "port": int(os.environ["POP3_PORT"]),
+                  "username": os.environ["POP3_USERNAME"],
+                  "password": os.environ["POP3_PASSWORD"],
+                  "use_ssl": True,
+              },
+              "mail_filter": {
+                  "from_contains": os.environ["MAIL_FROM_CONTAINS"],
+                  "subject_contains": os.environ["MAIL_SUBJECT_CONTAINS"],
+              },
+              "google": {
+                  "target_sheet_name": "Rapor",
+                  "log_sheet_name": "Log",
+              },
+              "webhook": {
+                  "url": os.environ["APPS_SCRIPT_WEBHOOK_URL"],
+                  "secret": os.environ["WEBHOOK_SECRET"],
+              },
+              "state": {
+                  "processed_ids_path": "processed_ids.json",
+              },
+          }
+
+          with open("config.pop3.json", "w", encoding="utf-8") as f:
+              json.dump(cfg, f, ensure_ascii=False, indent=2)
+          PY
 
       - name: Run job
         run: python pop3_to_sheets.py
