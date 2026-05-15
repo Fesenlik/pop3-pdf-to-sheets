@@ -60,6 +60,7 @@ def pop3_connect(cfg: dict[str, Any]):
 
 def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_ids: set[str]):
     _, items, _ = pop_conn.list()
+    print(f"[DEBUG] mailbox_message_count={len(items)}")
     if not items:
         return None
 
@@ -81,10 +82,15 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
 
         from_value = decode_mime(msg.get("From", "")).lower()
         subject = decode_mime(msg.get("Subject", "")).lower()
+        print(f"[DEBUG] checking_msg_num={msg_num} message_id={message_id}")
+        print(f"[DEBUG] from={from_value}")
+        print(f"[DEBUG] subject={subject}")
 
         if from_contains and from_contains not in from_value:
+            print(f"[DEBUG] skip_reason=from_filter from_contains={from_contains}")
             continue
         if subject_contains and subject_contains not in subject:
+            print(f"[DEBUG] skip_reason=subject_filter subject_contains={subject_contains}")
             continue
 
         for part in msg.walk():
@@ -93,15 +99,22 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
             filename = decode_mime(part.get_filename() or "")
             filename_lower = filename.lower()
             if "attachment" in cdisp.lower() and (filename.lower().endswith(".pdf") or "pdf" in ctype.lower()):
+                print(f"[DEBUG] found_pdf_attachment filename={filename}")
                 if attachment_name_contains and attachment_name_contains not in filename_lower:
+                    print(
+                        f"[DEBUG] skip_reason=attachment_name_filter "
+                        f"attachment_name_contains={attachment_name_contains}"
+                    )
                     continue
                 payload = part.get_payload(decode=True)
                 if payload:
+                    print(f"[DEBUG] selected_pdf filename={filename} message_id={message_id}")
                     return {
                         "message_id": message_id,
                         "subject": subject,
                         "pdf_bytes": payload,
                     }
+    print("[DEBUG] no_matching_message_or_pdf_found")
     return None
 
 
@@ -182,10 +195,12 @@ def main():
     now = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
     pop_conn = pop3_connect(cfg["pop3"])
+    print("[DEBUG] pop3_connected=true")
     try:
         item = fetch_latest_matching_pdf(pop_conn, cfg["mail_filter"], processed)
     finally:
         pop_conn.quit()
+        print("[DEBUG] pop3_connection_closed=true")
 
     base_payload = {
         "webhook_secret": cfg["webhook"]["secret"],
@@ -195,6 +210,7 @@ def main():
     }
 
     if not item:
+        print("[DEBUG] result=no_matching_email")
         post_to_apps_script(
             cfg["webhook"]["url"],
             cfg["webhook"]["secret"],
@@ -210,7 +226,9 @@ def main():
         return
 
     text = extract_pdf_text(item["pdf_bytes"])
+    print(f"[DEBUG] extracted_text_length={len(text.strip())}")
     if len(text.strip()) < 50:
+        print("[DEBUG] result=pdf_text_too_short")
         post_to_apps_script(
             cfg["webhook"]["url"],
             cfg["webhook"]["secret"],
@@ -226,7 +244,9 @@ def main():
         return
 
     headers, rows = parse_dynamic_table(text)
+    print(f"[DEBUG] parsed_headers={len(headers) if headers else 0} parsed_rows={len(rows) if rows else 0}")
     if not headers or not rows:
+        print("[DEBUG] result=table_parse_failed")
         post_to_apps_script(
             cfg["webhook"]["url"],
             cfg["webhook"]["secret"],
@@ -256,6 +276,7 @@ def main():
 
     processed.add(item["message_id"])
     save_state(state_path, processed)
+    print("[DEBUG] result=success")
 
 
 if __name__ == "__main__":
