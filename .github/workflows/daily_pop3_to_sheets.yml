@@ -177,7 +177,7 @@ jobs:
                   "subject_contains": os.environ["MAIL_SUBJECT_CONTAINS"],
               },
               "google": {
-                  "target_sheet_name": "Rapor",
+                  "target_sheet_name": "Palben - İşletmedeki Partiler",
                   "log_sheet_name": "Log",
               },
               "webhook": {
