@@ -98,14 +98,14 @@ jobs:
           APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL_SECRET:-$APPS_SCRIPT_WEBHOOK_URL_VAR}"
           WEBHOOK_SECRET="${WEBHOOK_SECRET_SECRET:-$WEBHOOK_SECRET_VAR}"
 
-          : "${POP3_HOST:?Missing POP3_HOST secret}"
-          : "${POP3_PORT:?Missing POP3_PORT secret}"
-          : "${POP3_USERNAME:?Missing POP3_USERNAME secret}"
-          : "${POP3_PASSWORD:?Missing POP3_PASSWORD secret}"
-          : "${MAIL_FROM_CONTAINS:?Missing MAIL_FROM_CONTAINS secret}"
-          : "${MAIL_SUBJECT_CONTAINS:?Missing MAIL_SUBJECT_CONTAINS secret}"
-          : "${APPS_SCRIPT_WEBHOOK_URL:?Missing APPS_SCRIPT_WEBHOOK_URL secret}"
-          : "${WEBHOOK_SECRET:?Missing WEBHOOK_SECRET secret}"
+          : "${POP3_HOST:?Missing POP3_HOST (set repo Secret or Variable)}"
+          : "${POP3_PORT:?Missing POP3_PORT (set repo Secret or Variable)}"
+          : "${POP3_USERNAME:?Missing POP3_USERNAME (set repo Secret or Variable)}"
+          : "${POP3_PASSWORD:?Missing POP3_PASSWORD (set repo Secret or Variable)}"
+          : "${MAIL_FROM_CONTAINS:?Missing MAIL_FROM_CONTAINS (set repo Secret or Variable)}"
+          : "${MAIL_SUBJECT_CONTAINS:?Missing MAIL_SUBJECT_CONTAINS (set repo Secret or Variable)}"
+          : "${APPS_SCRIPT_WEBHOOK_URL:?Missing APPS_SCRIPT_WEBHOOK_URL (set repo Secret or Variable)}"
+          : "${WEBHOOK_SECRET:?Missing WEBHOOK_SECRET (set repo Secret or Variable)}"
 
           cat > config.pop3.json <<'JSON'
           {
