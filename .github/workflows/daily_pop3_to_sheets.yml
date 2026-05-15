@@ -2,6 +2,12 @@ name: Daily POP3 PDF to Sheets
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  POP3_HOST_DEFAULT: mail.kurumsaleposta.com
+  POP3_PORT_DEFAULT: "995"
+  POP3_USERNAME_DEFAULT: ferhat@pameks.com.tr
+  MAIL_FROM_CONTAINS_DEFAULT: santral@palbentextile.com
+  MAIL_SUBJECT_CONTAINS_DEFAULT: İŞLETME RAPORU
+  APPS_SCRIPT_WEBHOOK_URL_DEFAULT: https://script.google.com/macros/s/AKfycbxWTvzzZjcwmJjFYqE5coGTY-zY-0piDMnLhvt8BDD5RY8L3tkIWVV47RgYApAO6gLt/exec
 
 on:
   schedule:
@@ -44,6 +50,12 @@ jobs:
           APPS_SCRIPT_WEBHOOK_URL_VAR: ${{ vars.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_VAR: ${{ vars.WEBHOOK_SECRET }}
           PALBEN_VAR: ${{ vars.PALBEN }}
+          POP3_HOST_DEFAULT: ${{ env.POP3_HOST_DEFAULT }}
+          POP3_PORT_DEFAULT: ${{ env.POP3_PORT_DEFAULT }}
+          POP3_USERNAME_DEFAULT: ${{ env.POP3_USERNAME_DEFAULT }}
+          MAIL_FROM_CONTAINS_DEFAULT: ${{ env.MAIL_FROM_CONTAINS_DEFAULT }}
+          MAIL_SUBJECT_CONTAINS_DEFAULT: ${{ env.MAIL_SUBJECT_CONTAINS_DEFAULT }}
+          APPS_SCRIPT_WEBHOOK_URL_DEFAULT: ${{ env.APPS_SCRIPT_WEBHOOK_URL_DEFAULT }}
         run: |
           check_pair() {
             local name="$1"
@@ -66,6 +78,7 @@ jobs:
           check_pair "APPS_SCRIPT_WEBHOOK_URL" "$APPS_SCRIPT_WEBHOOK_URL_SECRET" "$APPS_SCRIPT_WEBHOOK_URL_VAR"
           check_pair "WEBHOOK_SECRET" "$WEBHOOK_SECRET_SECRET" "$WEBHOOK_SECRET_VAR"
           check_pair "PALBEN" "$PALBEN_SECRET" "$PALBEN_VAR"
+          echo "DEFAULTS: OK"
 
       - name: Ensure processed state file exists
         run: |
@@ -93,6 +106,12 @@ jobs:
           APPS_SCRIPT_WEBHOOK_URL_VAR: ${{ vars.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET_VAR: ${{ vars.WEBHOOK_SECRET }}
           PALBEN_VAR: ${{ vars.PALBEN }}
+          POP3_HOST_DEFAULT: ${{ env.POP3_HOST_DEFAULT }}
+          POP3_PORT_DEFAULT: ${{ env.POP3_PORT_DEFAULT }}
+          POP3_USERNAME_DEFAULT: ${{ env.POP3_USERNAME_DEFAULT }}
+          MAIL_FROM_CONTAINS_DEFAULT: ${{ env.MAIL_FROM_CONTAINS_DEFAULT }}
+          MAIL_SUBJECT_CONTAINS_DEFAULT: ${{ env.MAIL_SUBJECT_CONTAINS_DEFAULT }}
+          APPS_SCRIPT_WEBHOOK_URL_DEFAULT: ${{ env.APPS_SCRIPT_WEBHOOK_URL_DEFAULT }}
         run: |
           PALBEN_CONFIG="${PALBEN_SECRET:-$PALBEN_VAR}"
 
@@ -120,6 +139,13 @@ jobs:
           MAIL_SUBJECT_CONTAINS="${MAIL_SUBJECT_CONTAINS:-$(read_palben_value MAIL_SUBJECT_CONTAINS)}"
           APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$(read_palben_value APPS_SCRIPT_WEBHOOK_URL)}"
           WEBHOOK_SECRET="${WEBHOOK_SECRET:-$(read_palben_value WEBHOOK_SECRET)}"
+
+          POP3_HOST="${POP3_HOST:-$POP3_HOST_DEFAULT}"
+          POP3_PORT="${POP3_PORT:-$POP3_PORT_DEFAULT}"
+          POP3_USERNAME="${POP3_USERNAME:-$POP3_USERNAME_DEFAULT}"
+          MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS:-$MAIL_FROM_CONTAINS_DEFAULT}"
+          MAIL_SUBJECT_CONTAINS="${MAIL_SUBJECT_CONTAINS:-$MAIL_SUBJECT_CONTAINS_DEFAULT}"
+          APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$APPS_SCRIPT_WEBHOOK_URL_DEFAULT}"
 
           : "${POP3_HOST:?Missing POP3_HOST (set repo Secret or Variable)}"
           : "${POP3_PORT:?Missing POP3_PORT (set repo Secret or Variable)}"
