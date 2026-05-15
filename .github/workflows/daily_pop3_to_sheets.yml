@@ -88,6 +88,10 @@ jobs:
             echo '{"processed_ids":[]}' > processed_ids.json
           fi
 
+      - name: Reset processed state on manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: echo '{"processed_ids":[]}' > processed_ids.json
+
       - name: Write runtime config
         env:
           POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
