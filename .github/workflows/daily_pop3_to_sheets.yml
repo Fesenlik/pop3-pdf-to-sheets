@@ -41,11 +41,20 @@ jobs:
           APPS_SCRIPT_WEBHOOK_URL: ${{ secrets.APPS_SCRIPT_WEBHOOK_URL }}
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
+          : "${POP3_HOST:?Missing POP3_HOST secret}"
+          : "${POP3_PORT:?Missing POP3_PORT secret}"
+          : "${POP3_USERNAME:?Missing POP3_USERNAME secret}"
+          : "${POP3_PASSWORD:?Missing POP3_PASSWORD secret}"
+          : "${MAIL_FROM_CONTAINS:?Missing MAIL_FROM_CONTAINS secret}"
+          : "${MAIL_SUBJECT_CONTAINS:?Missing MAIL_SUBJECT_CONTAINS secret}"
+          : "${APPS_SCRIPT_WEBHOOK_URL:?Missing APPS_SCRIPT_WEBHOOK_URL secret}"
+          : "${WEBHOOK_SECRET:?Missing WEBHOOK_SECRET secret}"
+
           cat > config.pop3.json <<'JSON'
           {
             "pop3": {
               "host": "__POP3_HOST__",
-              "port": __POP3_PORT__,
+              "port": "__POP3_PORT__",
               "username": "__POP3_USERNAME__",
               "password": "__POP3_PASSWORD__",
               "use_ssl": true
