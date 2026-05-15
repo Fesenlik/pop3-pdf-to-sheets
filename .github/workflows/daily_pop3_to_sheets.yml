@@ -1,5 +1,8 @@
 name: Daily POP3 PDF to Sheets
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: '30 6 * * *'
