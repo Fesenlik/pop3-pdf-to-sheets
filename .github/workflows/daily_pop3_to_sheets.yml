@@ -5,8 +5,9 @@ env:
   POP3_HOST_DEFAULT: mail.kurumsaleposta.com
   POP3_PORT_DEFAULT: "995"
   POP3_USERNAME_DEFAULT: ferhat@pameks.com.tr
-  MAIL_FROM_CONTAINS_DEFAULT: santral@palbentextile.com
-  MAIL_SUBJECT_CONTAINS_DEFAULT: İŞLETME RAPORU
+  MAIL_FROM_CONTAINS_DEFAULT: palbentextile.com
+  MAIL_SUBJECT_CONTAINS_DEFAULT: ""
+  ATTACHMENT_NAME_CONTAINS_DEFAULT: İşletmedeki Partiler
   APPS_SCRIPT_WEBHOOK_URL_DEFAULT: https://script.google.com/macros/s/AKfycbxWTvzzZjcwmJjFYqE5coGTY-zY-0piDMnLhvt8BDD5RY8L3tkIWVV47RgYApAO6gLt/exec
 
 on:
@@ -56,6 +57,7 @@ jobs:
           MAIL_FROM_CONTAINS_DEFAULT: ${{ env.MAIL_FROM_CONTAINS_DEFAULT }}
           MAIL_SUBJECT_CONTAINS_DEFAULT: ${{ env.MAIL_SUBJECT_CONTAINS_DEFAULT }}
           APPS_SCRIPT_WEBHOOK_URL_DEFAULT: ${{ env.APPS_SCRIPT_WEBHOOK_URL_DEFAULT }}
+          ATTACHMENT_NAME_CONTAINS_DEFAULT: ${{ env.ATTACHMENT_NAME_CONTAINS_DEFAULT }}
         run: |
           check_pair() {
             local name="$1"
@@ -112,6 +114,7 @@ jobs:
           MAIL_FROM_CONTAINS_DEFAULT: ${{ env.MAIL_FROM_CONTAINS_DEFAULT }}
           MAIL_SUBJECT_CONTAINS_DEFAULT: ${{ env.MAIL_SUBJECT_CONTAINS_DEFAULT }}
           APPS_SCRIPT_WEBHOOK_URL_DEFAULT: ${{ env.APPS_SCRIPT_WEBHOOK_URL_DEFAULT }}
+          ATTACHMENT_NAME_CONTAINS_DEFAULT: ${{ env.ATTACHMENT_NAME_CONTAINS_DEFAULT }}
         run: |
           PALBEN_CONFIG="${PALBEN_SECRET:-$PALBEN_VAR}"
 
@@ -146,6 +149,7 @@ jobs:
           MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS:-$MAIL_FROM_CONTAINS_DEFAULT}"
           MAIL_SUBJECT_CONTAINS="${MAIL_SUBJECT_CONTAINS:-$MAIL_SUBJECT_CONTAINS_DEFAULT}"
           APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$APPS_SCRIPT_WEBHOOK_URL_DEFAULT}"
+          ATTACHMENT_NAME_CONTAINS="$ATTACHMENT_NAME_CONTAINS_DEFAULT"
 
           : "${POP3_HOST:?Missing POP3_HOST (set repo Secret or Variable)}"
           : "${POP3_PORT:?Missing POP3_PORT (set repo Secret or Variable)}"
@@ -158,7 +162,7 @@ jobs:
 
           export POP3_HOST POP3_PORT POP3_USERNAME POP3_PASSWORD
           export MAIL_FROM_CONTAINS MAIL_SUBJECT_CONTAINS
-          export APPS_SCRIPT_WEBHOOK_URL WEBHOOK_SECRET
+          export APPS_SCRIPT_WEBHOOK_URL WEBHOOK_SECRET ATTACHMENT_NAME_CONTAINS
 
           python - <<'PY'
           import json
@@ -175,6 +179,7 @@ jobs:
               "mail_filter": {
                   "from_contains": os.environ["MAIL_FROM_CONTAINS"],
                   "subject_contains": os.environ["MAIL_SUBJECT_CONTAINS"],
+                  "attachment_name_contains": os.environ["ATTACHMENT_NAME_CONTAINS"],
               },
               "google": {
                   "target_sheet_name": "Palben - İşletmedeki Partiler",

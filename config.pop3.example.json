@@ -7,8 +7,9 @@
     "use_ssl": true
   },
   "mail_filter": {
-    "from_contains": "rapor@firma.com",
-    "subject_contains": "Isletmedeki Partiler"
+    "from_contains": "palbentextile.com",
+    "subject_contains": "",
+    "attachment_name_contains": "İşletmedeki Partiler"
   },
   "google": {
     "target_sheet_name": "Rapor",

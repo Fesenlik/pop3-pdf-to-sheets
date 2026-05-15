@@ -68,6 +68,7 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
 
     from_contains = mail_filter.get("from_contains", "").lower().strip()
     subject_contains = mail_filter.get("subject_contains", "").lower().strip()
+    attachment_name_contains = mail_filter.get("attachment_name_contains", "").lower().strip()
 
     for msg_num in message_numbers:
         _, lines, _ = pop_conn.retr(msg_num)
@@ -90,7 +91,10 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
             cdisp = str(part.get("Content-Disposition", ""))
             ctype = str(part.get_content_type() or "")
             filename = decode_mime(part.get_filename() or "")
+            filename_lower = filename.lower()
             if "attachment" in cdisp.lower() and (filename.lower().endswith(".pdf") or "pdf" in ctype.lower()):
+                if attachment_name_contains and attachment_name_contains not in filename_lower:
+                    continue
                 payload = part.get_payload(decode=True)
                 if payload:
                     return {
