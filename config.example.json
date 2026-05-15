@@ -2,7 +2,7 @@
   "queryFrom": "reports@example.com",
   "querySubjectKeyword": "Isletmedeki Partiler",
   "processedLabelName": "processed-pdf-report",
-  "targetSheetName": "Rapor",
+  "targetSheetName": "Palben - İşletmedeki Partiler",
   "logSheetName": "Log",
   "timezone": "Europe/Istanbul"
 }
