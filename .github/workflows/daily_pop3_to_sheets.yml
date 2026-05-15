@@ -161,7 +161,6 @@ jobs:
           : "${POP3_USERNAME:?Missing POP3_USERNAME (set repo Secret or Variable)}"
           : "${POP3_PASSWORD:?Missing POP3_PASSWORD (set repo Secret or Variable)}"
           : "${MAIL_FROM_CONTAINS:?Missing MAIL_FROM_CONTAINS (set repo Secret or Variable)}"
-          : "${MAIL_SUBJECT_CONTAINS:?Missing MAIL_SUBJECT_CONTAINS (set repo Secret or Variable)}"
           : "${APPS_SCRIPT_WEBHOOK_URL:?Missing APPS_SCRIPT_WEBHOOK_URL (set repo Secret or Variable)}"
           : "${WEBHOOK_SECRET:?Missing WEBHOOK_SECRET (set repo Secret or Variable)}"
 
