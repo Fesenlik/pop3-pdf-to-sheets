@@ -238,6 +238,12 @@ def post_to_apps_script(url: str, webhook_secret: str, payload: dict[str, Any]) 
 
     resp = requests.post(url, headers=headers, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), timeout=60)
     resp.raise_for_status()
+    try:
+        body = resp.json()
+    except Exception:
+        raise RuntimeError(f"Apps Script returned non-JSON response: {resp.text[:300]}")
+    if not body.get("ok"):
+        raise RuntimeError(f"Apps Script returned failure: {body}")
 
 
 def main():
