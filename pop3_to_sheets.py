@@ -2,6 +2,7 @@ import email
 import json
 import poplib
 import re
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 from email.header import decode_header
@@ -16,12 +17,19 @@ REPORT_TYPE_SEVK = "boya_irsaliye_sevk"
 
 
 def detect_report_type(filename: str) -> str:
-    name = (filename or "").lower()
-    if "boya i̇rsaliye raporu" in name or "boya irsaliye raporu" in name:
+    name = normalize_for_match(filename or "")
+    if "boya irsaliye raporu" in name:
         return REPORT_TYPE_SEVK
-    if "işletmedeki partiler" in name or "isletmedeki partiler" in name:
+    if "isletmedeki partiler" in name:
         return REPORT_TYPE_PARTILER
     return ""
+
+
+def normalize_for_match(text: str) -> str:
+    # Normalize Turkish/Unicode variants (e.g. 'İ' -> 'i') for reliable matching.
+    decomposed = unicodedata.normalize("NFKD", text)
+    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return stripped.lower()
 
 
 def load_config(path: str = "config.pop3.json") -> dict[str, Any]:
