@@ -79,7 +79,7 @@ def pop3_connect(cfg: dict[str, Any]):
     return conn
 
 
-def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_ids: set[str]):
+def fetch_latest_matching_pdfs(pop_conn, mail_filter: dict[str, str], processed_ids: set[str]):
     _, items, _ = pop_conn.list()
     print(f"[DEBUG] mailbox_message_count={len(items)}")
     if not items:
@@ -91,6 +91,8 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
     from_contains = mail_filter.get("from_contains", "").lower().strip()
     subject_contains = mail_filter.get("subject_contains", "").lower().strip()
     attachment_name_contains = mail_filter.get("attachment_name_contains", "").lower().strip()
+
+    selected_by_type: dict[str, dict[str, Any]] = {}
 
     for msg_num in message_numbers:
         _, lines, _ = pop_conn.retr(msg_num)
@@ -133,16 +135,22 @@ def fetch_latest_matching_pdf(pop_conn, mail_filter: dict[str, str], processed_i
                     if not report_type:
                         print("[DEBUG] skip_reason=unknown_report_type")
                         continue
-                    print(f"[DEBUG] selected_pdf filename={filename} message_id={message_id}")
-                    return {
+                    if report_type in selected_by_type:
+                        continue
+                    print(f"[DEBUG] selected_pdf filename={filename} message_id={message_id} report_type={report_type}")
+                    selected_by_type[report_type] = {
                         "message_id": message_id,
                         "subject": subject,
                         "filename": filename,
                         "report_type": report_type,
                         "pdf_bytes": payload,
                     }
-    print("[DEBUG] no_matching_message_or_pdf_found")
-    return None
+                    if REPORT_TYPE_PARTILER in selected_by_type and REPORT_TYPE_SEVK in selected_by_type:
+                        break
+
+    if not selected_by_type:
+        print("[DEBUG] no_matching_message_or_pdf_found")
+    return list(selected_by_type.values())
 
 
 def normalize_text(text: str) -> str:
@@ -447,7 +455,7 @@ def main():
     pop_conn = pop3_connect(cfg["pop3"])
     print("[DEBUG] pop3_connected=true")
     try:
-        item = fetch_latest_matching_pdf(pop_conn, cfg["mail_filter"], processed)
+        items = fetch_latest_matching_pdfs(pop_conn, cfg["mail_filter"], processed)
     finally:
         pop_conn.quit()
         print("[DEBUG] pop3_connection_closed=true")
@@ -459,7 +467,7 @@ def main():
         "timestamp": now,
     }
 
-    if not item:
+    if not items:
         print("[DEBUG] result=no_matching_email")
         post_to_apps_script(
             cfg["webhook"]["url"],
@@ -475,31 +483,47 @@ def main():
         )
         return
 
-    report_type = item.get("report_type", "")
-    target_sheet = cfg["google"]["target_sheet_name"]
+    success_count = 0
+    for item in items:
+        report_type = item.get("report_type", "")
+        target_sheet = cfg["google"]["target_sheet_name"]
 
-    if report_type == REPORT_TYPE_SEVK:
-        headers, rows = extract_sevk_table(item["pdf_bytes"])
-        target_sheet = "Palben - Sevk"
-        print(
-            f"[DEBUG] report_type={report_type} "
-            f"table_extract_headers={len(headers) if headers else 0} "
-            f"table_extract_rows={len(rows) if rows else 0}"
-        )
-    else:
-        headers, rows = extract_pdf_table(item["pdf_bytes"])
-        target_sheet = "Palben - İşletmedeki Partiler"
+        if report_type == REPORT_TYPE_SEVK:
+            headers, rows = extract_sevk_table(item["pdf_bytes"])
+            target_sheet = "Palben - Sevk"
+        else:
+            headers, rows = extract_pdf_table(item["pdf_bytes"])
+            target_sheet = "Palben - İşletmedeki Partiler"
+
         print(
             f"[DEBUG] report_type={report_type} "
             f"table_extract_headers={len(headers) if headers else 0} "
             f"table_extract_rows={len(rows) if rows else 0}"
         )
 
-    if not headers or not rows:
-        text = extract_pdf_text(item["pdf_bytes"])
-        print(f"[DEBUG] extracted_text_length={len(text.strip())}")
-        if len(text.strip()) < 50:
-            print("[DEBUG] result=pdf_text_too_short")
+        if not headers or not rows:
+            text = extract_pdf_text(item["pdf_bytes"])
+            print(f"[DEBUG] extracted_text_length={len(text.strip())}")
+            if len(text.strip()) < 50:
+                print("[DEBUG] result=pdf_text_too_short")
+                post_to_apps_script(
+                    cfg["webhook"]["url"],
+                    cfg["webhook"]["secret"],
+                    {
+                        **base_payload,
+                        "message_id": item["message_id"],
+                        "status": "ERROR",
+                        "note": "PDF text extraction failed/too short",
+                        "headers": [],
+                        "rows": [],
+                    },
+                )
+                continue
+            headers, rows = parse_dynamic_table(text)
+            print(f"[DEBUG] text_parse_headers={len(headers) if headers else 0} text_parse_rows={len(rows) if rows else 0}")
+
+        if not headers or not rows:
+            print("[DEBUG] result=table_parse_failed")
             post_to_apps_script(
                 cfg["webhook"]["url"],
                 cfg["webhook"]["secret"],
@@ -507,48 +531,31 @@ def main():
                     **base_payload,
                     "message_id": item["message_id"],
                     "status": "ERROR",
-                    "note": "PDF text extraction failed/too short",
+                    "note": "Table parse failed",
                     "headers": [],
                     "rows": [],
                 },
             )
-            return
-        headers, rows = parse_dynamic_table(text)
-        print(f"[DEBUG] text_parse_headers={len(headers) if headers else 0} text_parse_rows={len(rows) if rows else 0}")
+            continue
 
-    if not headers or not rows:
-        print("[DEBUG] result=table_parse_failed")
         post_to_apps_script(
             cfg["webhook"]["url"],
             cfg["webhook"]["secret"],
             {
                 **base_payload,
+                "target_sheet": target_sheet,
                 "message_id": item["message_id"],
-                "status": "ERROR",
-                "note": "Table parse failed",
-                "headers": [],
-                "rows": [],
+                "status": "SUCCESS",
+                "note": "Processed and replaced target sheet",
+                "headers": headers,
+                "rows": rows,
             },
         )
-        return
+        processed.add(item["message_id"])
+        success_count += 1
 
-    post_to_apps_script(
-        cfg["webhook"]["url"],
-        cfg["webhook"]["secret"],
-        {
-            **base_payload,
-            "target_sheet": target_sheet,
-            "message_id": item["message_id"],
-            "status": "SUCCESS",
-            "note": "Processed and replaced target sheet",
-            "headers": headers,
-            "rows": rows,
-        },
-    )
-
-    processed.add(item["message_id"])
     save_state(state_path, processed)
-    print("[DEBUG] result=success")
+    print(f"[DEBUG] result=success processed_count={success_count}")
 
 
 if __name__ == "__main__":
