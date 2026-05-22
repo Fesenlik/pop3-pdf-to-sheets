@@ -280,6 +280,8 @@ def extract_sevk_table(pdf_bytes: bytes):
             "Fire %",
         ]
         rows = []
+        current_irs_no = ""
+        current_irs_tarih = ""
         settings = {
             "vertical_strategy": "lines",
             "horizontal_strategy": "lines",
@@ -303,43 +305,73 @@ def extract_sevk_table(pdf_bytes: bytes):
                         continue
 
                     first = normalized_rows[0]
-                    if not first or first[0] != "İrsaliye No":
+                    if not first:
                         continue
 
-                    irs_no = first[1] if len(first) > 1 else ""
-                    irs_tarih = ""
-                    if len(first) > 6:
-                        m = re.search(r"(\d{2}\.\d{2}\.\d{4})", first[6])
-                        if m:
-                            irs_tarih = m.group(1)
+                    if first[0] == "İrsaliye No":
+                        current_irs_no = first[1] if len(first) > 1 else current_irs_no
+                        if len(first) > 6:
+                            m = re.search(r"(\d{2}\.\d{2}\.\d{4})", first[6])
+                            if m:
+                                current_irs_tarih = m.group(1)
+                        data_rows = normalized_rows[1:]
+                        layout = "full"
+                    elif first[0] == "Parti" and current_irs_no:
+                        data_rows = normalized_rows[1:]
+                        layout = "continuation"
+                    else:
+                        continue
 
-                    for r in normalized_rows[1:]:
-                        if len(r) < 25:
+                    for r in data_rows:
+                        if layout == "full" and len(r) < 25:
+                            continue
+                        if layout == "continuation" and len(r) < 17:
                             continue
                         if "Toplam" in " ".join(r):
                             continue
                         if not r[0].startswith("("):
                             continue
 
-                        rows.append(
-                            [
-                                irs_no,
-                                irs_tarih,
-                                r[0],
-                                r[2],
-                                r[3],
-                                r[5],
-                                r[8],
-                                r[10],
-                                r[12],
-                                r[18],
-                                normalize_cell(r[20]),
-                                normalize_cell(r[21]),
-                                normalize_cell(r[22]),
-                                normalize_cell(r[23]),
-                                r[24],
-                            ]
-                        )
+                        if layout == "full":
+                            rows.append(
+                                [
+                                    current_irs_no,
+                                    current_irs_tarih,
+                                    r[0],
+                                    r[2],
+                                    r[3],
+                                    r[5],
+                                    r[8],
+                                    r[10],
+                                    r[12],
+                                    r[18],
+                                    normalize_cell(r[20]),
+                                    normalize_cell(r[21]),
+                                    normalize_cell(r[22]),
+                                    normalize_cell(r[23]),
+                                    r[24],
+                                ]
+                            )
+                        else:
+                            rows.append(
+                                [
+                                    current_irs_no,
+                                    current_irs_tarih,
+                                    r[0],
+                                    r[1],
+                                    r[2],
+                                    r[3],
+                                    r[4],
+                                    r[5],
+                                    r[6],
+                                    r[7],
+                                    normalize_cell(r[12]),
+                                    normalize_cell(r[13]),
+                                    normalize_cell(r[14]),
+                                    normalize_cell(r[15]),
+                                    r[16],
+                                ]
+                            )
         if not rows:
             return None, None
         return headers, rows
