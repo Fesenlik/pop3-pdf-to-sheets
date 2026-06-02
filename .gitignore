@@ -2,3 +2,4 @@
 config.pop3.json
 processed_ids.json
 _tmp_report.pdf
+__pycache__/
