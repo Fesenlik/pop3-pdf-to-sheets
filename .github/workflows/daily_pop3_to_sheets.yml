@@ -14,6 +14,8 @@ on:
   schedule:
     - cron: '*/30 6-15 * * *'
   workflow_dispatch:
+  repository_dispatch:
+    types: [run-pop3-to-sheets]
 
 jobs:
   run:
@@ -24,9 +26,9 @@ jobs:
         id: schedule_window
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Manual run, continuing."
+            echo "${{ github.event_name }} run, continuing."
             exit 0
           fi
 
