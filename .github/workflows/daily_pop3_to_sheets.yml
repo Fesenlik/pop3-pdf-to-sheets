@@ -12,8 +12,7 @@ env:
 
 on:
   schedule:
-    - cron: '30 6-14 * * *'
-    - cron: '0 7-15 * * *'
+    - cron: '*/30 6-15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -21,18 +20,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check Turkey schedule window
+        id: schedule_window
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run, continuing."
+            exit 0
+          fi
+
+          now_tr="$(TZ=Europe/Istanbul date +%H%M)"
+          if [ "$now_tr" -ge 0930 ] && [ "$now_tr" -le 1800 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Turkey time $now_tr is inside 09:30-18:00."
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Turkey time $now_tr is outside 09:30-18:00, skipping."
+          fi
+
       - name: Checkout
+        if: steps.schedule_window.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Python
+        if: steps.schedule_window.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install deps
+        if: steps.schedule_window.outputs.should_run == 'true'
         run: pip install -r requirements.txt
 
       - name: Debug secrets and vars presence
+        if: steps.schedule_window.outputs.should_run == 'true'
         env:
           POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
           POP3_PORT_SECRET: ${{ secrets.POP3_PORT }}
@@ -84,16 +106,18 @@ jobs:
           echo "DEFAULTS: OK"
 
       - name: Ensure processed state file exists
+        if: steps.schedule_window.outputs.should_run == 'true'
         run: |
           if [ ! -f processed_ids.json ]; then
             echo '{"processed_ids":[]}' > processed_ids.json
           fi
 
       - name: Reset processed state on manual run
-        if: github.event_name == 'workflow_dispatch'
+        if: steps.schedule_window.outputs.should_run == 'true' && github.event_name == 'workflow_dispatch'
         run: echo '{"processed_ids":[]}' > processed_ids.json
 
       - name: Write runtime config
+        if: steps.schedule_window.outputs.should_run == 'true'
         env:
           POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
           POP3_PORT_SECRET: ${{ secrets.POP3_PORT }}
@@ -204,9 +228,11 @@ jobs:
           PY
 
       - name: Run job
+        if: steps.schedule_window.outputs.should_run == 'true'
         run: python pop3_to_sheets.py
 
       - name: Upload processed state
+        if: steps.schedule_window.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: processed-state
