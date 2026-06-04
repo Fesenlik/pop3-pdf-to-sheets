@@ -75,9 +75,9 @@ def pop3_connect(cfg: dict[str, Any]):
     host = cfg["host"]
     port = int(cfg.get("port", 995))
     use_ssl = bool(cfg.get("use_ssl", True))
-    timeout = int(cfg.get("timeout", 60))
+    timeout = int(cfg.get("timeout", 20))
     retries = int(cfg.get("retries", 3))
-    delay_seconds = int(cfg.get("retry_delay_seconds", 20))
+    delay_seconds = int(cfg.get("retry_delay_seconds", 10))
 
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):

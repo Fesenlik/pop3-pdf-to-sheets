@@ -206,6 +206,9 @@ jobs:
                   "username": os.environ["POP3_USERNAME"],
                   "password": os.environ["POP3_PASSWORD"],
                   "use_ssl": True,
+                  "timeout": 20,
+                  "retries": 3,
+                  "retry_delay_seconds": 10,
               },
               "mail_filter": {
                   "from_contains": os.environ["MAIL_FROM_CONTAINS"],
