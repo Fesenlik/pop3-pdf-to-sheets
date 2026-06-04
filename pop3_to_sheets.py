@@ -473,6 +473,12 @@ def normalize_cell(value: str):
 
 
 def post_to_apps_script(url: str, webhook_secret: str, payload: dict[str, Any]) -> None:
+    if "script.googleusercontent.com" in url:
+        raise RuntimeError(
+            "APPS_SCRIPT_WEBHOOK_URL must be the stable script.google.com /exec URL, "
+            "not the temporary script.googleusercontent.com redirect URL."
+        )
+
     headers = {"Content-Type": "application/json"}
     if webhook_secret:
         headers["X-Webhook-Secret"] = webhook_secret

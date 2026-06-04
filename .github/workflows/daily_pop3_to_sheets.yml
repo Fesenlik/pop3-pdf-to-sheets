@@ -137,7 +137,9 @@ jobs:
           MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS_SECRET:-$MAIL_FROM_CONTAINS_VAR}"
           # Subject filter intentionally disabled to allow both report mail types.
           MAIL_SUBJECT_CONTAINS=""
-          APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL_SECRET:-$APPS_SCRIPT_WEBHOOK_URL_VAR}"
+          # Always use the stable Web App /exec URL. GitHub secrets may accidentally
+          # contain Google's temporary script.googleusercontent.com redirect URL.
+          APPS_SCRIPT_WEBHOOK_URL=""
           WEBHOOK_SECRET="${WEBHOOK_SECRET_SECRET:-$WEBHOOK_SECRET_VAR}"
 
           POP3_HOST="${POP3_HOST:-$(read_palben_value POP3_HOST)}"
@@ -146,7 +148,7 @@ jobs:
           POP3_PASSWORD="${POP3_PASSWORD:-$(read_palben_value POP3_PASSWORD)}"
           MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS:-$(read_palben_value MAIL_FROM_CONTAINS)}"
           MAIL_SUBJECT_CONTAINS=""
-          APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$(read_palben_value APPS_SCRIPT_WEBHOOK_URL)}"
+          APPS_SCRIPT_WEBHOOK_URL=""
           WEBHOOK_SECRET="${WEBHOOK_SECRET:-$(read_palben_value WEBHOOK_SECRET)}"
 
           POP3_HOST="${POP3_HOST:-$POP3_HOST_DEFAULT}"
@@ -154,7 +156,7 @@ jobs:
           POP3_USERNAME="${POP3_USERNAME:-$POP3_USERNAME_DEFAULT}"
           MAIL_FROM_CONTAINS="${MAIL_FROM_CONTAINS:-$MAIL_FROM_CONTAINS_DEFAULT}"
           MAIL_SUBJECT_CONTAINS=""
-          APPS_SCRIPT_WEBHOOK_URL="${APPS_SCRIPT_WEBHOOK_URL:-$APPS_SCRIPT_WEBHOOK_URL_DEFAULT}"
+          APPS_SCRIPT_WEBHOOK_URL="$APPS_SCRIPT_WEBHOOK_URL_DEFAULT"
           ATTACHMENT_NAME_CONTAINS="$ATTACHMENT_NAME_CONTAINS_DEFAULT"
 
           : "${POP3_HOST:?Missing POP3_HOST (set repo Secret or Variable)}"
