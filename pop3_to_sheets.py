@@ -477,7 +477,20 @@ def post_to_apps_script(url: str, webhook_secret: str, payload: dict[str, Any]) 
     if webhook_secret:
         headers["X-Webhook-Secret"] = webhook_secret
 
-    resp = requests.post(url, headers=headers, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), timeout=60)
+    resp = requests.post(
+        url,
+        headers=headers,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        timeout=60,
+        allow_redirects=False,
+    )
+
+    if resp.status_code in (301, 302, 303, 307, 308):
+        location = resp.headers.get("location", "")
+        if "script.googleusercontent.com" in location:
+            print(f"[DEBUG] apps_script_redirect_accepted status={resp.status_code}")
+            return
+
     resp.raise_for_status()
     try:
         body = resp.json()
