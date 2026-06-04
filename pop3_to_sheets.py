@@ -7,10 +7,11 @@ import socket
 import time
 import unicodedata
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime
 from email.header import decode_header
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pdfplumber
 import requests
@@ -539,7 +540,7 @@ def main():
     state_path = cfg["state"]["processed_ids_path"]
     processed = load_state(state_path)
 
-    now = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%Y-%m-%d %H:%M:%S")
     base_payload = {
         "webhook_secret": cfg["webhook"]["secret"],
         "target_sheet": cfg["google"]["target_sheet_name"],
