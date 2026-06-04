@@ -1,4 +1,5 @@
 import email
+import html
 import json
 import poplib
 import re
@@ -481,7 +482,15 @@ def post_to_apps_script(url: str, webhook_secret: str, payload: dict[str, Any]) 
     try:
         body = resp.json()
     except Exception:
-        raise RuntimeError(f"Apps Script returned non-JSON response: {resp.text[:300]}")
+        text = resp.text or ""
+        title = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+        message = re.search(r'class="errorMessage"[^>]*>(.*?)</', text, re.IGNORECASE | re.DOTALL)
+        extracted = message.group(1) if message else (title.group(1) if title else text[:500])
+        extracted = html.unescape(re.sub(r"\s+", " ", extracted)).strip()
+        raise RuntimeError(
+            "Apps Script returned non-JSON response: "
+            f"status={resp.status_code} content_type={resp.headers.get('content-type')} message={extracted}"
+        )
     if not body.get("ok"):
         raise RuntimeError(f"Apps Script returned failure: {body}")
 
