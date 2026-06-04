@@ -12,8 +12,7 @@ env:
 
 on:
   schedule:
-    - cron: '30 6-14 * * *'
-    - cron: '0 7-15 * * *'
+    - cron: '*/30 6-15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -32,7 +31,30 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Check Turkey work window
+        if: github.event_name == 'schedule'
+        run: |
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import sys
+
+          now = datetime.now(ZoneInfo("Europe/Istanbul"))
+          minutes = now.hour * 60 + now.minute
+          start = 9 * 60 + 30
+          end = 18 * 60
+
+          print(f"Turkey time: {now:%Y-%m-%d %H:%M:%S}")
+          if not (start <= minutes <= end):
+              print("Outside 09:30-18:00 Turkey window. Skipping POP3 job.")
+              with open("skip_job", "w", encoding="utf-8") as f:
+                  f.write("1")
+          else:
+              print("Inside 09:30-18:00 Turkey window. Continuing POP3 job.")
+          PY
+
       - name: Debug secrets and vars presence
+        if: hashFiles('skip_job') == ''
         env:
           POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
           POP3_PORT_SECRET: ${{ secrets.POP3_PORT }}
@@ -84,6 +106,7 @@ jobs:
           echo "DEFAULTS: OK"
 
       - name: Ensure processed state file exists
+        if: hashFiles('skip_job') == ''
         run: |
           if [ ! -f processed_ids.json ]; then
             echo '{"processed_ids":[]}' > processed_ids.json
@@ -94,6 +117,7 @@ jobs:
         run: echo '{"processed_ids":[]}' > processed_ids.json
 
       - name: Write runtime config
+        if: hashFiles('skip_job') == ''
         env:
           POP3_HOST_SECRET: ${{ secrets.POP3_HOST }}
           POP3_PORT_SECRET: ${{ secrets.POP3_PORT }}
@@ -206,9 +230,11 @@ jobs:
           PY
 
       - name: Run job
+        if: hashFiles('skip_job') == ''
         run: python pop3_to_sheets.py
 
       - name: Upload processed state
+        if: hashFiles('skip_job') == ''
         uses: actions/upload-artifact@v4
         with:
           name: processed-state
