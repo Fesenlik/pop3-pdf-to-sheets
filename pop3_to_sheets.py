@@ -3,6 +3,8 @@ import html
 import json
 import poplib
 import re
+import socket
+import time
 import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
@@ -73,11 +75,29 @@ def pop3_connect(cfg: dict[str, Any]):
     host = cfg["host"]
     port = int(cfg.get("port", 995))
     use_ssl = bool(cfg.get("use_ssl", True))
+    timeout = int(cfg.get("timeout", 60))
+    retries = int(cfg.get("retries", 3))
+    delay_seconds = int(cfg.get("retry_delay_seconds", 20))
 
-    conn = poplib.POP3_SSL(host, port) if use_ssl else poplib.POP3(host, port)
-    conn.user(cfg["username"])
-    conn.pass_(cfg["password"])
-    return conn
+    last_error: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"[DEBUG] pop3_connect_attempt={attempt}/{retries} host={host} port={port}")
+            conn = (
+                poplib.POP3_SSL(host, port, timeout=timeout)
+                if use_ssl
+                else poplib.POP3(host, port, timeout=timeout)
+            )
+            conn.user(cfg["username"])
+            conn.pass_(cfg["password"])
+            return conn
+        except (OSError, poplib.error_proto, socket.timeout) as exc:
+            last_error = exc
+            print(f"[DEBUG] pop3_connect_failed attempt={attempt}/{retries} error={exc}")
+            if attempt < retries:
+                time.sleep(delay_seconds)
+
+    raise RuntimeError(f"POP3 connection failed after {retries} attempts: {last_error}")
 
 
 def fetch_latest_matching_pdfs(pop_conn, mail_filter: dict[str, str], processed_ids: set[str]):
@@ -520,21 +540,38 @@ def main():
     processed = load_state(state_path)
 
     now = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
-
-    pop_conn = pop3_connect(cfg["pop3"])
-    print("[DEBUG] pop3_connected=true")
-    try:
-        items = fetch_latest_matching_pdfs(pop_conn, cfg["mail_filter"], processed)
-    finally:
-        pop_conn.quit()
-        print("[DEBUG] pop3_connection_closed=true")
-
     base_payload = {
         "webhook_secret": cfg["webhook"]["secret"],
         "target_sheet": cfg["google"]["target_sheet_name"],
         "log_sheet": cfg["google"]["log_sheet_name"],
         "timestamp": now,
     }
+
+    try:
+        pop_conn = pop3_connect(cfg["pop3"])
+    except Exception as exc:
+        note = f"POP3 connection failed: {exc}"
+        print(f"[DEBUG] result=pop3_connection_failed error={exc}")
+        post_to_apps_script(
+            cfg["webhook"]["url"],
+            cfg["webhook"]["secret"],
+            {
+                **base_payload,
+                "message_id": "",
+                "status": "ERROR",
+                "note": note,
+                "headers": [],
+                "rows": [],
+            },
+        )
+        return
+
+    print("[DEBUG] pop3_connected=true")
+    try:
+        items = fetch_latest_matching_pdfs(pop_conn, cfg["mail_filter"], processed)
+    finally:
+        pop_conn.quit()
+        print("[DEBUG] pop3_connection_closed=true")
 
     if not items:
         print("[DEBUG] result=no_matching_email")
