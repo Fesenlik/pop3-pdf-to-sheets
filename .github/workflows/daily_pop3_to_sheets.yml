@@ -2,7 +2,7 @@ name: Daily POP3 PDF to Sheets
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  POP3_HOST_DEFAULT: mail.kurumsaleposta.com
+  POP3_HOST_DEFAULT: mx-in01.natrohost.com
   POP3_PORT_DEFAULT: "995"
   POP3_USERNAME_DEFAULT: ferhat@pameks.com.tr
   MAIL_FROM_CONTAINS_DEFAULT: palbentextile.com
@@ -154,7 +154,8 @@ jobs:
               | tail -n 1
           }
 
-          POP3_HOST="${POP3_HOST_SECRET:-$POP3_HOST_VAR}"
+          # Force the Natro inbound POP3 host during connectivity testing.
+          POP3_HOST="$POP3_HOST_DEFAULT"
           POP3_PORT="${POP3_PORT_SECRET:-$POP3_PORT_VAR}"
           POP3_USERNAME="${POP3_USERNAME_SECRET:-$POP3_USERNAME_VAR}"
           POP3_PASSWORD="${POP3_PASSWORD_SECRET:-$POP3_PASSWORD_VAR}"
@@ -166,7 +167,7 @@ jobs:
           APPS_SCRIPT_WEBHOOK_URL=""
           WEBHOOK_SECRET="${WEBHOOK_SECRET_SECRET:-$WEBHOOK_SECRET_VAR}"
 
-          POP3_HOST="${POP3_HOST:-$(read_palben_value POP3_HOST)}"
+          POP3_HOST="$POP3_HOST_DEFAULT"
           POP3_PORT="${POP3_PORT:-$(read_palben_value POP3_PORT)}"
           POP3_USERNAME="${POP3_USERNAME:-$(read_palben_value POP3_USERNAME)}"
           POP3_PASSWORD="${POP3_PASSWORD:-$(read_palben_value POP3_PASSWORD)}"
