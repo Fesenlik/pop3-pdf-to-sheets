@@ -74,6 +74,7 @@ def save_state(path: str, ids: set[str]) -> None:
 
 def pop3_connect(cfg: dict[str, Any]):
     host = cfg["host"]
+    hosts = [host] + [h for h in cfg.get("fallback_hosts", []) if h and h != host]
     port = int(cfg.get("port", 995))
     use_ssl = bool(cfg.get("use_ssl", True))
     timeout = int(cfg.get("timeout", 20))
@@ -81,24 +82,26 @@ def pop3_connect(cfg: dict[str, Any]):
     delay_seconds = int(cfg.get("retry_delay_seconds", 10))
 
     last_error: Exception | None = None
-    for attempt in range(1, retries + 1):
-        try:
-            print(f"[DEBUG] pop3_connect_attempt={attempt}/{retries} host={host} port={port}")
-            conn = (
-                poplib.POP3_SSL(host, port, timeout=timeout)
-                if use_ssl
-                else poplib.POP3(host, port, timeout=timeout)
-            )
-            conn.user(cfg["username"])
-            conn.pass_(cfg["password"])
-            return conn
-        except (OSError, poplib.error_proto, socket.timeout) as exc:
-            last_error = exc
-            print(f"[DEBUG] pop3_connect_failed attempt={attempt}/{retries} error={exc}")
-            if attempt < retries:
-                time.sleep(delay_seconds)
+    for current_host in hosts:
+        for attempt in range(1, retries + 1):
+            try:
+                print(f"[DEBUG] pop3_connect_attempt={attempt}/{retries} host={current_host} port={port}")
+                conn = (
+                    poplib.POP3_SSL(current_host, port, timeout=timeout)
+                    if use_ssl
+                    else poplib.POP3(current_host, port, timeout=timeout)
+                )
+                conn.user(cfg["username"])
+                conn.pass_(cfg["password"])
+                print(f"[DEBUG] pop3_host_selected={current_host}")
+                return conn
+            except (OSError, poplib.error_proto, socket.timeout) as exc:
+                last_error = exc
+                print(f"[DEBUG] pop3_connect_failed host={current_host} attempt={attempt}/{retries} error={exc}")
+                if attempt < retries:
+                    time.sleep(delay_seconds)
 
-    raise RuntimeError(f"POP3 connection failed after {retries} attempts: {last_error}")
+    raise RuntimeError(f"POP3 connection failed for hosts {hosts}: {last_error}")
 
 
 def fetch_latest_matching_pdfs(pop_conn, mail_filter: dict[str, str], processed_ids: set[str]):

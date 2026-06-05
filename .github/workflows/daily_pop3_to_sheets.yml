@@ -206,12 +206,16 @@ jobs:
           cfg = {
               "pop3": {
                   "host": os.environ["POP3_HOST"],
+                  "fallback_hosts": [
+                      "mx-in02.natrohost.com",
+                      "mail.kurumsaleposta.com"
+                  ],
                   "port": int(os.environ["POP3_PORT"]),
                   "username": os.environ["POP3_USERNAME"],
                   "password": os.environ["POP3_PASSWORD"],
                   "use_ssl": True,
                   "timeout": 20,
-                  "retries": 3,
+                  "retries": 2,
                   "retry_delay_seconds": 10,
               },
               "mail_filter": {
